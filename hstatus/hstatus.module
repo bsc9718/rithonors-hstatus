@@ -57,14 +57,14 @@ function hstatus_menu(){
         'file' => 'includes/hstatus.pages.inc',
         'access callback' => '_hstatus_static_access',
     );
+
     //complearning form
     //note that even though no % is in the path, anything postfixing
     //the path gets passed as an argument
     $items['hstatus/submitcl'] = array(
         'title' => 'Comp Learning Form',
-        'page callback' => 'hstatus_build_form',
-        'page arguments' => array('cl'),
-        'file' => 'includes/hstatus.forms.inc',
+        'page callback' => 'hstatus_build_clform',
+        'file' => 'includes/hstatus.clform.inc',
         'access callback' => '_hstatus_form_cl_access',
     );
     return $items;

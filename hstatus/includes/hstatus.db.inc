@@ -7,28 +7,6 @@
  *  - It keeps the code cleaner in the other files.
  *  - It gives more flexibility if we should change the db structure.
  */
- 
-/**
- * hstatus_ishonors
- * 
- * @param $uid Drupal user id
- * 
- * Checks to see whether a drupal user is in honors
- */
-function hstatus_ishonors($uid){
-    $q = 
-    "SELECT s.username
-    FROM {users} u
-    JOIN {h_students} s
-    ON u.name = s.username
-    WHERE u.uid=%d";
-    $rs = db_query($q,$uid);
-    if(db_fetch_array($rs)){
-        return true;
-    }else{
-        return false;
-    }
-}
 
 /**
  * hstatus_load_user
@@ -152,7 +130,8 @@ function hstatus_load_user($username, $loadCourses = false, $loadSubmissions = f
                 'program' => $arry['program'],
                 'gpa' => $arry['gpa'],
             );
-        }else{ 
+        }else{
+            //DEBUG, but we should maybe return error statuses instead of just 'false' 
             drupal_set_message(t('@username is not in Honors',array('@username'=>$username)),'warning');
             return false; 
         }
@@ -169,6 +148,7 @@ function hstatus_load_user($username, $loadCourses = false, $loadSubmissions = f
                 'gpa' => $arry['gpa'],
             );
         }else{
+            //DEBUG, but we should maybe return error statuses instead of just 'false'
             drupal_set_message(t('@username has no continuation entry',array('@username'=>$username)),'warning');
             return false;
         }
@@ -246,7 +226,7 @@ function hstatus_load_cldraft($uid, $expire = '1 year'){
     //basic caching
     static $cldrafts;
     if(isset($cldrafts[$uid]) && isset($cldrafts[$uid]['count'])){
-        return $cldrafts;
+        return $cldrafts[$uid];
     }
     
     $q = 'SELECT updatetime, data FROM {h_cldrafts} WHERE uid=%d';
@@ -320,11 +300,11 @@ function hstatus_clsubmit($uid){
         // $data is not zero-indexed.
         for($i = 1; $i <= $n; $i++){
             $prefix = "======  Activity $i =====".PHP_EOL;
-            $desc .= $prefix.check_plain(strip_tags($data[$i]['desc']));
-            $lead .= $prefix.check_plain(strip_tags($data[$i]['lead']));
-            $time .= $prefix.check_plain(strip_tags($data[$i]['time']));
-            $contact .= $prefix.check_plain(strip_tags($data[$i]['contact']));
-            $comment .= $prefix.check_plain(strip_tags($data[$i]['comment']));
+            $desc .= $prefix.check_plain(strip_tags($data[$i]['desc'])).PHP_EOL;
+            $lead .= $prefix.check_plain(strip_tags($data[$i]['lead'])).PHP_EOL;
+            $time .= $prefix.check_plain(strip_tags($data[$i]['time'])).PHP_EOL;
+            $contact .= $prefix.check_plain(strip_tags($data[$i]['contact'])).PHP_EOL;
+            $comment .= $prefix.check_plain(strip_tags($data[$i]['comment'])).PHP_EOL;
         }
     }else{
         drupal_set_message(t('Not submitted.  You seem to have an invalid number of activities.'),'error');

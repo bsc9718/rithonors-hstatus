@@ -17,43 +17,6 @@ function hstatus_user_page($user){
 }
 
 /**
- * hstatus_static_page
- * 
- * hstatus_test_db_page
- * 
- * Expermental demonstrative functions
- */
- 
-function hstatus_static_page(){
-global $user;
-    if(module_load_include('inc','hstatus','includes/hstatus.db') === FALSE){
-        $retVal = 'Failed to load database';
-    }else{
-        $u = hstatus_load_user($user->name,false,false,true);
-        ob_start();
-        include 'test2.php';
-        $retVal = ob_get_contents();
-        ob_end_clean();
-        return $retVal;
-    }
-    //return '<p>Hello!</p>';
-}
-function hstatus_test_db_page(){
-global $user;
-    if(module_load_include('inc','hstatus','includes/hstatus.db') === FALSE){
-        $retVal = 'Failed to load database';
-    }else{
-        $u = hstatus_load_user($user->name);
-        if($u){
-            $retVal = '<pre>'.print_r($u,true).'</pre>';
-        }else{
-            $retVal = 'User failed to load';
-        }
-    }
-    return $retVal;
-}
-
-/**
  * Preprocess function for the theme hook 'hstatus_mystatus'.
  * 
  * It loads the database api from hstatus.db.inc and gets a user object

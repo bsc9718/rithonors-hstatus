@@ -4,37 +4,53 @@
 function _hstatus_timetosave(){return '6 months';}
 
 /**
- * hstatus_build_form
- * 
- * Convenience function to build form pages
+ * Convenience function to build complearning form
  */
 
-function hstatus_build_form($form = ''){
-    switch($form){
-        case 'cl':
-            return drupal_get_form('hstatus_forms_cl',(func_num_args() > 1)?func_get_arg(1):'first');
-        default:
-            return "The requested form '$form' could not be loaded.";
-    }
+function hstatus_build_clform(){
+    return drupal_get_form('hstatus_forms_cl',(func_num_args() > 1)?func_get_arg(1):'first');
 }
 
 /**
  * Complearning form
  */
 function hstatus_forms_cl(&$form_state,$page){
-    //get data from database
-    global $user;
-    module_load_include('inc','hstatus','hstatus.db');
-    $data = hstatus_load_cldraft($user->uid,_hstatus_timetosave());
+    if(isset($form_state['storage']['data']['count'])){
+        $data = $form_state['storage']['data'];
+    }else{
+        $data = _hstatus_clform_loaddata();
+    }
+    
+    //DEBUG
+    $form = array();
+    $form['currentstate'] = array(
+        '#prefix' => '<pre>',
+        '#suffix' => '</pre>',
+        '#value' => print_r($data,true),
+    );
     
     //if we are coming from another page, we need to get it from the
-    //storage rather than from the args
+    //storage rather than from the args.
+    //we also need to store it back so that our page forward and page
+    //back will work.
     $page = (isset($form_state['storage']['page']))?$form_state['storage']['page']:$page;
+    $form_state['storage']['page'] = $page;
+    
+    //ensure that data is loaded if we are going to a page other than 'first'
+    if(isset($data['count']) && $data['count'] > 0){
+        $form_state['storage']['count'] = $data['count'];
+    }else{
+        //DEBUG, but possibly useful anyway...
+        if($page != 'first')drupal_set_message(t('Number of activities unknown.  Going to first page'));
+        $page = 'first';
+    }
     
     $n = intval($page);
+    //DEBUG
+    drupal_set_message("rendering page $n ($page)");
     //if $page is a string, $n will be 0
     if($n > 0){
-        $form = array();
+        //$form = array();
         $form['page'] = array(
             '#type' => 'value',
             '#value' => $n,
@@ -72,31 +88,27 @@ function hstatus_forms_cl(&$form_state,$page){
             '#type' => 'textarea',
             '#title' => t('Comments'),
         );
+        $form['back'] = array(
+          '#type' => 'submit',
+          '#value' => t('< Prev Page'),
+          '#id' => 'back',
+        );
         $form['submit'] = array(
           '#type' => 'submit',
           '#value' => t('Next Page >'),
         );
         
-        
-        if(isset($data['count']) && $data['count'] < $n){
-            //page does not exist
-            //don't do anything so that execution proceeds to the first page form
-        }elseif(isset($data[$n])){
-            $form['name']['#default_value'] = $data[$n]['name'];
-            $form['desc']['#default_value'] = $data[$n]['desc'];
-            $form['lead']['#default_value'] = $data[$n]['lead'];
-            $form['time']['#default_value'] = $data[$n]['time'];
-            $form['contact']['#default_value'] = $data[$n]['contact'];
-            $form['comment']['#default_value'] = $data[$n]['commment'];
-            return $form;
-        }else{
-            return $form;
-        }
+        $form['name']['#default_value'] = $data[$n]['name'];
+        $form['desc']['#default_value'] = $data[$n]['desc'];
+        $form['lead']['#default_value'] = $data[$n]['lead'];
+        $form['time']['#default_value'] = $data[$n]['time'];
+        $form['contact']['#default_value'] = $data[$n]['contact'];
+        $form['comment']['#default_value'] = $data[$n]['commment'];
+        return $form;
     }
     
     if($page == 'last'){
         //last page
-        $form = array();
         $form['page'] = array(
             '#type' => 'value',
             '#value' => 'last',
@@ -107,6 +119,11 @@ function hstatus_forms_cl(&$form_state,$page){
             If you are satisfied with your submission,
             you may submit the form now by clicking the button below.").'</p>',
         );
+        $form['back'] = array(
+          '#type' => 'submit',
+          '#value' => t('< Prev Page'),
+          '#id' => 'back',
+        );
         $form['submit'] = array(
           '#type' => 'submit',
           '#value' => t('Done, Submit Now'),
@@ -114,7 +131,6 @@ function hstatus_forms_cl(&$form_state,$page){
         return $form;
     }else{
         //first page -- acts as a catch-all, rather than returning a 404
-        $form = array();
         $form['page'] = array(
             '#type' => 'value',
             '#value' => 'first',
@@ -128,6 +144,11 @@ function hstatus_forms_cl(&$form_state,$page){
             '#default_value' => (isset($data['count']))?$data['count']:1,
             //HTML5 attributes
             '#attributes' => array('type' => 'number', 'min' => '1'),
+        );
+        $form['back'] = array(
+          '#type' => 'submit',
+          '#value' => t('< Prev Page'),
+          '#id' => 'back',
         );
         $form['submit'] = array(
           '#type' => 'submit',
@@ -172,15 +193,21 @@ function hstatus_form_cl_count_validate($element, &$form_state){
 
 function hstatus_forms_cl_submit($form, &$form_state){
     $page = $form_state['values']['page'];
+    $back = ($form_state['clicked_button']['#id'] == 'back');
     
     if(is_numeric($page)){
-        _hstatus_clform_savepage($form_state);
+        _hstatus_clform_savepage($form_state,$back);
     }elseif($page == 'first'){
         _hstatus_clform_newentry($form_state);
     }elseif($page == 'last'){
-        _hstatus_clform_savefinal($form_state);
+        if($back){
+            drupal_set_message('going back to '.$form_state['storage']['count']);
+            _hstatus_clform_redirect($form_state,$form_state['storage']['count'],false);
+        }else{
+            _hstatus_clform_savefinal($form_state);
+        }
     }else{
-        _hstatus_clform_redirect($form_state,false);
+        _hstatus_clform_redirect($form_state,false,false);
     }
 }
 
@@ -195,17 +222,15 @@ function hstatus_forms_cl_submit($form, &$form_state){
  * Helper function for the first page
  */
 function _hstatus_clform_newentry(&$form_state){
-    global $user;
-    module_load_include('inc','hstatus','hstatus.db');
-    $data = hstatus_load_cldraft($user->uid,_hstatus_timetosave());
+    //DEBUG
+    drupal_set_message('recording new entry');
+    
+    $data = _hstatus_clform_loaddata();
     
     $n = $form_state['values']['count'];
+    $form_state['storage']['count'] = $n;
+    $data['count'] = $n;
     
-    if($data){
-        $data['count'] = $n;
-    }else{
-        $data = array('count' => $n);
-    }
     _hstatus_clform_saveandredirect($form_state,$data,1);
 }
 
@@ -213,17 +238,25 @@ function _hstatus_clform_newentry(&$form_state){
  * Helper for all pages except first and last
  */
 
-function _hstatus_clform_savepage(&$form_state){
-    global $user;
-    module_load_include('inc','hstatus','hstatus.db');
-    $data = hstatus_load_cldraft($user->uid,_hstatus_timetosave());
+function _hstatus_clform_savepage(&$form_state,$back=false){
+    
+    $data = $form_state['storage']['data'];
+    if(!isset($data['count'])){
+        $data = _hstatus_clform_loaddata();
+    }
+    
     //DEBUG
     drupal_set_message('Loading data: '.($data)?'Success.':'Failure.');
+    
     $vals = $form_state['values']; //note that PHP arrays are NOT assigned by reference
     $n = $vals['page'];
     unset($vals['page']);
+    
     $data[$n] = $vals;
-    $nextpage = ($n < $data['count'])?$n+1:'last';
+    
+    file_put_contents('/home/regdoug/hstatus.savepage.log',print_r($data,true));
+    
+    $nextpage = $back?'<':'>';
     _hstatus_clform_saveandredirect($form_state,$data,$nextpage);
 }
 
@@ -254,6 +287,7 @@ function _hstatus_clform_saveandredirect(&$form_state,$data,$page){
     global $user;
     module_load_include('inc','hstatus','hstatus.db');
     $success = hstatus_save_cldraft($user->uid,$data);
+    if($success)$form_state['storage']['data'] = $data;
     $page = ($success)?$page:false;
     _hstatus_clform_redirect($form_state,$page);
 } 
@@ -266,7 +300,27 @@ function _hstatus_clform_saveandredirect(&$form_state,$data,$page){
  * the current page of the form is reloaded.
  */
 
-function _hstatus_clform_redirect(&$form_state,$page,$message=true){
+function _hstatus_clform_redirect(&$form_state,$page='>',$message=true){
+    if($page == '>' || $page == '<'){
+        $n = $form_state['storage']['page'];
+        //DEBUG
+        drupal_set_message("current page: $n");
+        if(is_numeric($n)){
+            if($page == '>'){
+                //DEBUG
+                drupal_set_message('going forward');
+                $page = ($n < $form_state['storage']['count'])?$n+1:'last';
+            }else{
+                //DEBUG
+                drupal_set_message('going backward');
+                $page = ($n > 1)?$n-1:'first';
+            }
+        }else{
+            $page = false;
+        }
+    }
+    
+    //message could be better.    
     if($page){
         $form_state['storage']['page'] = $page;
         if($message){drupal_set_message(t('Data saved successfully'));}
@@ -274,4 +328,11 @@ function _hstatus_clform_redirect(&$form_state,$page,$message=true){
         $form_state['redirect'] = false;
         if($message){drupal_set_message(t('Failed to save data.'),'error');}
     }
+}
+
+//this gets done often enough that it needs it's own helper function
+function _hstatus_clform_loaddata(){
+    global $user;
+    module_load_include('inc','hstatus','hstatus.db');
+    return hstatus_load_cldraft($uid,_hstatus_timetosave());
 }
