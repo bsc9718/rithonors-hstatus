@@ -8,7 +8,7 @@ function _hstatus_timetosave(){return '6 months';}
  */
 
 function hstatus_build_clform(){
-    return drupal_get_form('hstatus_forms_cl',(func_num_args() > 1)?func_get_arg(1):'first');
+    return drupal_get_form('hstatus_forms_cl',(func_num_args() > 0)?func_get_arg(0):'first');
 }
 
 /**
@@ -225,7 +225,11 @@ function _hstatus_clform_newentry(&$form_state){
     //DEBUG
     drupal_set_message('recording new entry');
     
-    $data = _hstatus_clform_loaddata();
+    if(isset($form_state['storage']['data']['count'])){
+        $data = $form_state['storage']['data'];
+    }else{
+        $data = _hstatus_clform_loaddata();
+    }
     
     $n = $form_state['values']['count'];
     $form_state['storage']['count'] = $n;
