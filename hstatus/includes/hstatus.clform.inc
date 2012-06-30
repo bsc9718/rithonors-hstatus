@@ -13,12 +13,21 @@ function hstatus_build_clform(){
 
 /**
  * Complearning form
+ * 
+ * $form_state['storage'] is used to store three things:
+ *  1. the $data array      ['data']
+ *  2. the page to load     ['page']
+ *  3. the activity count   ['count']
  */
 function hstatus_forms_cl(&$form_state,$page){
-    if(isset($form_state['storage']['data']['count'])){
+    if(isset($form_state['storage']['page']) 
+            && isset($form_state['storage']['data']['count'])){
         $data = $form_state['storage']['data'];
+        $page = $form_state['storage']['page'];
     }else{
         $data = _hstatus_clform_loaddata();
+        $form_state['storage']['data'] = $data;
+        $form_state['storage']['page'] = $page;
     }
     
     //DEBUG
@@ -29,15 +38,8 @@ function hstatus_forms_cl(&$form_state,$page){
         '#value' => print_r($data,true),
     );
     
-    //if we are coming from another page, we need to get it from the
-    //storage rather than from the args.
-    //we also need to store it back so that our page forward and page
-    //back will work.
-    $page = (isset($form_state['storage']['page']))?$form_state['storage']['page']:$page;
-    $form_state['storage']['page'] = $page;
-    
     //ensure that data is loaded if we are going to a page other than 'first'
-    if(isset($data['count']) && $data['count'] > 0){
+    if(isset($data['count']) && intval($data['count']) > 0){
         $form_state['storage']['count'] = $data['count'];
     }else{
         //DEBUG, but possibly useful anyway...
@@ -103,7 +105,7 @@ function hstatus_forms_cl(&$form_state,$page){
         $form['lead']['#default_value'] = $data[$n]['lead'];
         $form['time']['#default_value'] = $data[$n]['time'];
         $form['contact']['#default_value'] = $data[$n]['contact'];
-        $form['comment']['#default_value'] = $data[$n]['commment'];
+        $form['comment']['#default_value'] = $data[$n]['comment'];
         return $form;
     }
     
@@ -338,5 +340,5 @@ function _hstatus_clform_redirect(&$form_state,$page='>',$message=true){
 function _hstatus_clform_loaddata(){
     global $user;
     module_load_include('inc','hstatus','hstatus.db');
-    return hstatus_load_cldraft($uid,_hstatus_timetosave());
+    return hstatus_load_cldraft($user->uid,_hstatus_timetosave());
 }
